@@ -14,6 +14,7 @@ const socket = io();
 let selectedUsername = null; // We'll store the user's chosen name here once they pick one
 let loadedMessageCount = 0;  // How many messages we've loaded from the server
 let hasMoreMessages = true;  // Whether there are more messages to load
+let currentGroupId = null;   // Currently joined group (if any)
 
 // DOM Elements (cached for performance)
 // Instead of searching for these elements every time we need them,
@@ -33,7 +34,14 @@ const elements = {
     clearHistoryBtn: document.getElementById('clear-history-btn'), // Button to clear chat history
     clearConfirmationModal: document.getElementById('clear-confirmation-modal'), // Confirmation modal
     confirmClearBtn: document.getElementById('confirm-clear'),    // Confirm clear button
-    cancelClearBtn: document.getElementById('cancel-clear')       // Cancel clear button
+    cancelClearBtn: document.getElementById('cancel-clear'),       // Cancel clear button
+    groupIdInput: document.getElementById('group-id-input'),
+    createGroupBtn: document.getElementById('create-group-btn'),
+    joinGroupBtn: document.getElementById('join-group-btn'),
+    leaveGroupBtn: document.getElementById('leave-group-btn'),
+    clearGroupBtn: document.getElementById('clear-group-btn'),
+    deleteGroupBtn: document.getElementById('delete-group-btn'),
+    currentGroupLabel: document.getElementById('current-group-label')
     
 };
 
@@ -177,6 +185,7 @@ function handleUsernameAccepted(data) {
     elements.usernameModal.style.display = 'none';      // Hide the username popup
     elements.chatInterface.style.display = 'flex';      // Show the main chat area
     elements.messageInput.focus();                       // Put the cursor in the message box so they can start typing
+    updateCurrentGroupLabel();
     
 }
 
@@ -260,6 +269,20 @@ function addMessageToChat(username, timestamp, message, prepend = false) {
         elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight; // Scroll to the bottom
     }
     
+}
+
+function updateCurrentGroupLabel() {
+
+    if (currentGroupId) {
+
+        elements.currentGroupLabel.textContent = `(Group: ${currentGroupId})`;
+
+    } else {
+
+        elements.currentGroupLabel.textContent = '';
+
+    }
+
 }
 
 /**
@@ -359,6 +382,47 @@ function handleClearHistory() {
     
 }
 
+// Group Controls
+// ==============
+function handleCreateGroup() {
+
+    const groupId = (elements.groupIdInput.value || '').trim();
+    if (!groupId) return;
+    socket.emit('create_group', { groupId, name: groupId });
+
+}
+
+function handleJoinGroup() {
+
+    const groupId = (elements.groupIdInput.value || '').trim();
+    if (!groupId) return;
+    socket.emit('join_group', { groupId });
+
+}
+
+function handleLeaveGroup() {
+
+    // No server call needed for now; simply switch context back to global
+    currentGroupId = null;
+    clearChatDisplay();
+    updateCurrentGroupLabel();
+
+}
+
+function handleClearGroup() {
+
+    if (!currentGroupId) return;
+    socket.emit('clear_group_history', { groupId: currentGroupId });
+
+}
+
+function handleDeleteGroup() {
+
+    if (!currentGroupId) return;
+    socket.emit('delete_group', { groupId: currentGroupId });
+
+}
+
 /**
  * Handles sending a message
  * When the user clicks send or presses Enter, this function runs
@@ -375,14 +439,28 @@ function handleMessageSubmit(event) {
     // Only send if there's actually a message and they've picked a username
     if (!message || !selectedUsername) return;
     
-    // Send the message to the server with all the necessary information
-    socket.emit('message', {
-        
-        username: selectedUsername,  // Who sent it (we use the stored username for security)
-        message: message,            // What they said
-        timestamp: new Date()        // When they sent it
-        
-    });
+    // Send to current group if in a group, else global chat
+    if (currentGroupId) {
+
+        socket.emit('group_message', {
+
+            groupId: currentGroupId,
+            message: message,
+            timestamp: new Date()
+
+        });
+
+    } else {
+
+        socket.emit('message', {
+
+            username: selectedUsername,
+            message: message,
+            timestamp: new Date()
+
+        });
+
+    }
     
     elements.messageInput.value = ''; // Clear the input box so they can type their next message
     
@@ -399,11 +477,76 @@ socket.on('username_accepted', handleUsernameAccepted);
 // When the server says "sorry, that username is already taken"
 socket.on('username_taken', handleUsernameTaken);
 
-// When someone sends a message (including ourselves)
+// When someone sends a global message (including ourselves)
 socket.on('message', function(data) {
     
-    addMessageToChat(data.username, data.timestamp, data.message);
+    // Only show global messages when not inside a group context
+    if (!currentGroupId) {
+        addMessageToChat(data.username, data.timestamp, data.message);
+    }
     
+});
+
+// Group events
+socket.on('group_created', function(data) {
+
+    currentGroupId = data.groupId;
+    clearChatDisplay();
+    updateCurrentGroupLabel();
+
+});
+
+socket.on('group_joined', function(data) {
+
+    currentGroupId = data.groupId;
+    clearChatDisplay();
+    updateCurrentGroupLabel();
+    (data.messages || []).forEach(msg => {
+
+        addMessageToChat(msg.username, msg.timestamp, msg.message);
+
+    });
+
+});
+
+socket.on('group_message', function(data) {
+
+    if (data.groupId === currentGroupId) {
+
+        addMessageToChat(data.username, data.timestamp, data.message);
+
+    }
+
+});
+
+socket.on('group_history_cleared', function(data) {
+
+    if (data.groupId === currentGroupId) {
+
+        clearChatDisplay();
+
+    }
+
+});
+
+// Global history cleared should not affect users currently viewing a group
+socket.on('global_history_cleared', function(data) {
+    if (!currentGroupId) {
+        clearChatDisplay();
+        console.log(`Global chat history cleared by ${data.clearedBy}`);
+    }
+});
+
+socket.on('group_deleted', function(data) {
+
+    if (data.groupId === currentGroupId) {
+
+        clearChatDisplay();
+        currentGroupId = null;
+        updateCurrentGroupLabel();
+        
+    }
+
 });
 
 // When we first connect, the server sends us all the old messages
@@ -507,6 +650,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set up the clear confirmation modal buttons
     elements.confirmClearBtn.addEventListener('click', handleClearHistory);
     elements.cancelClearBtn.addEventListener('click', hideClearConfirmation);
+
+    // Group controls
+    elements.createGroupBtn.addEventListener('click', handleCreateGroup);
+    elements.joinGroupBtn.addEventListener('click', handleJoinGroup);
+    elements.leaveGroupBtn.addEventListener('click', handleLeaveGroup);
+    elements.clearGroupBtn.addEventListener('click', handleClearGroup);
+    elements.deleteGroupBtn.addEventListener('click', handleDeleteGroup);
     
     // Close modal when clicking outside of it
     elements.clearConfirmationModal.addEventListener('click', function(event) {

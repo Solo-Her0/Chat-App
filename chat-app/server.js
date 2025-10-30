@@ -108,6 +108,18 @@ const MESSAGE_KEYS = {
                                           // It's like a label on a box in our filing cabinet
 };
 
+// Group Chat Keys
+// ===============
+// We namespace all group-related data under these patterns
+const GROUP_KEYS = {
+
+    GROUPS_SET: 'groups',                                 // Set of all group IDs
+    meta: (groupId) => `group:${groupId}:meta`,           // Hash: { name, owner, createdAt }
+    members: (groupId) => `group:${groupId}:members`,     // Set of usernames in the group
+    messages: (groupId) => `group:${groupId}:messages`    // List of messages for the group
+
+};
+
 // Utility Functions
 // =================
 // These are helper functions that do specific tasks
@@ -193,6 +205,478 @@ function handleUsernameSelection(socket, data) {
     
     // Tell everyone else "hey, a new person joined the chat"
     socket.broadcast.emit('user_joined', { username });
+
+}
+
+/**
+ * Validates a groupId string
+ * @param {string} groupId
+ * @returns {boolean}
+ */
+function isValidGroupId(groupId) {
+
+    if (!groupId || typeof groupId !== 'string') return false;
+    const trimmed = groupId.trim();
+    if (!trimmed) return false;
+    // allow letters, numbers, underscores and hyphens (2-50 chars)
+    return /^[a-zA-Z0-9_-]{2,50}$/.test(trimmed);
+
+}
+
+/**
+ * Creates a new private group
+ * @param {Object} socket
+ * @param {{ groupId: string, name?: string }} data
+ */
+async function handleCreateGroup(socket, data) {
+
+    if (!socket.username) {
+
+        socket.emit('error', { message: 'Please select a username before creating groups.' });
+        return;
+
+    }
+
+    const groupId = (data?.groupId || '').trim();
+    const groupName = (data?.name || groupId).trim();
+
+    if (!isValidGroupId(groupId)) {
+
+        socket.emit('error', { message: 'Invalid group ID. Use 2-50 chars: letters, numbers, _ or -.' });
+        return;
+
+    }
+
+    try {
+
+        const exists = await handleRedisOperation(
+
+            () => valkeyClient.sismember(GROUP_KEYS.GROUPS_SET, groupId),
+            'group existence check'
+
+        );
+
+        if (exists) {
+
+            socket.emit('error', { message: 'Group already exists.' });
+            return;
+
+        }
+
+        // Add group to registry
+        await handleRedisOperation(
+
+            () => valkeyClient.sadd(GROUP_KEYS.GROUPS_SET, groupId),
+            'group add to registry'
+
+        );
+
+        // Set group metadata
+        const createdAt = new Date().toISOString();
+        await handleRedisOperation(
+
+            () => valkeyClient.hset(GROUP_KEYS.meta(groupId), {
+                name: groupName,
+                owner: socket.username,
+                createdAt
+            }),
+
+            'group meta set'
+
+        );
+
+        // Add creator as member
+        await handleRedisOperation(
+
+            () => valkeyClient.sadd(GROUP_KEYS.members(groupId), socket.username),
+            'group add member'
+
+        );
+
+        // Join socket.io room
+        socket.join(groupId);
+
+        console.log(`[GROUP] Created by ${socket.username} → id=${groupId} name="${groupName}" at ${createdAt}`);
+
+        socket.emit('group_created', {
+
+            groupId,
+            name: groupName,
+            owner: socket.username,
+            createdAt
+
+        });
+
+    } catch (error) {
+
+        console.error('Failed to create group:', error);
+        socket.emit('error', { message: 'Failed to create group. Please try again.' });
+
+    }
+
+}
+
+/**
+ * Joins an existing group
+ * @param {Object} socket
+ * @param {{ groupId: string }} data
+ */
+async function handleJoinGroup(socket, data) {
+
+    if (!socket.username) {
+
+        socket.emit('error', { message: 'Please select a username before joining groups.' });
+        return;
+
+    }
+
+    const groupId = (data?.groupId || '').trim();
+    if (!isValidGroupId(groupId)) {
+
+        socket.emit('error', { message: 'Invalid group ID.' });
+        return;
+
+    }
+
+    try {
+
+        const exists = await handleRedisOperation(
+
+            () => valkeyClient.sismember(GROUP_KEYS.GROUPS_SET, groupId),
+            'group existence check'
+
+        );
+
+        if (!exists) {
+
+            socket.emit('error', { message: 'Group does not exist.' });
+            return;
+
+        }
+
+        // Add to members
+        await handleRedisOperation(
+
+            () => valkeyClient.sadd(GROUP_KEYS.members(groupId), socket.username),
+            'group add member'
+
+        );
+
+        // Join room
+        socket.join(groupId);
+
+        console.log(`[GROUP] Join: user=${socket.username} group=${groupId}`);
+
+        // Load historical messages for the group
+        const messages = await handleRedisOperation(
+
+            () => valkeyClient.lrange(GROUP_KEYS.messages(groupId), 0, -1),
+            'group historical messages retrieval'
+
+        );
+
+        const parsedMessages = messages.map(item => JSON.parse(item));
+
+        // Load metadata
+        const meta = await handleRedisOperation(
+
+            () => valkeyClient.hgetall(GROUP_KEYS.meta(groupId)),
+            'group meta get'
+
+        );
+
+        socket.emit('group_joined', {
+
+            groupId,
+            name: meta?.name || groupId,
+            messages: parsedMessages
+
+        });
+
+    } catch (error) {
+
+        console.error('Failed to join group:', error);
+        socket.emit('error', { message: 'Failed to join group. Please try again.' });
+
+    }
+
+}
+
+/**
+ * Sends a message to a group
+ * @param {Object} socket
+ * @param {{ groupId: string, message: string, timestamp: string|Date }} data
+ */
+async function handleGroupMessage(socket, data) {
+
+    if (!socket.username) {
+
+        socket.emit('error', { message: 'Please select a username before sending messages.' });
+        return;
+
+    }
+
+    const groupId = (data?.groupId || '').trim();
+    const messageText = (data?.message || '').trim();
+    const timestamp = data?.timestamp;
+
+    if (!isValidGroupId(groupId) || !messageText) {
+
+        return;
+
+    }
+
+    try {
+
+        // Verify membership
+        const isMember = await handleRedisOperation(
+
+            () => valkeyClient.sismember(GROUP_KEYS.members(groupId), socket.username),
+            'group membership check'
+
+        );
+
+        if (!isMember) {
+
+            socket.emit('error', { message: 'You are not a member of this group.' });
+            return;
+
+        }
+
+        const messageData = {
+
+            groupId,
+            username: socket.username,
+            message: messageText,
+            timestamp
+
+        };
+
+        await handleRedisOperation(
+
+            () => valkeyClient.lpush(GROUP_KEYS.messages(groupId), JSON.stringify(messageData)),
+            'group message storage'
+
+        );
+
+        // Broadcast to the room only
+        io.to(groupId).emit('group_message', messageData);
+        // console.log(`[GROUP] Message: group=${groupId} user=${socket.username}`);
+
+    } catch (error) {
+
+        console.error('Failed to send group message:', error);
+        socket.emit('error', { message: 'Failed to send message. Please try again.' });
+
+    }
+
+}
+
+/**
+ * Clears history of a group (allowed for any member)
+ * @param {Object} socket
+ * @param {{ groupId: string }} data
+ */
+async function handleClearGroupHistory(socket, data) {
+
+    if (!socket.username) {
+
+        socket.emit('error', { message: 'Please select a username before clearing group history.' });
+        return;
+
+    }
+
+    const groupId = (data?.groupId || '').trim();
+    if (!isValidGroupId(groupId)) return;
+
+    try {
+
+        const isMember = await handleRedisOperation(
+
+            () => valkeyClient.sismember(GROUP_KEYS.members(groupId), socket.username),
+            'group membership check'
+
+        );
+
+        if (!isMember) {
+
+            socket.emit('error', { message: 'You are not a member of this group.' });
+            return;
+
+        }
+
+        await handleRedisOperation(
+
+            () => valkeyClient.del(GROUP_KEYS.messages(groupId)),
+            'group history clearing'
+
+        );
+
+        console.log(`[GROUP] History cleared: group=${groupId} by ${socket.username}`);
+
+        io.to(groupId).emit('group_history_cleared', {
+            groupId,
+            clearedBy: socket.username,
+            timestamp: new Date()
+        });
+
+    } catch (error) {
+
+        console.error('Failed to clear group history:', error);
+        socket.emit('error', { message: 'Failed to clear group history. Please try again.' });
+
+    }
+
+}
+
+/**
+ * Deletes a group (owner only)
+ * @param {Object} socket
+ * @param {{ groupId: string }} data
+ */
+async function handleDeleteGroup(socket, data) {
+
+    if (!socket.username) {
+
+        socket.emit('error', { message: 'Please select a username before deleting groups.' });
+        return;
+
+    }
+
+    const groupId = (data?.groupId || '').trim();
+    if (!isValidGroupId(groupId)) return;
+
+    try {
+
+        const exists = await handleRedisOperation(
+
+            () => valkeyClient.sismember(GROUP_KEYS.GROUPS_SET, groupId),
+            'group existence check'
+
+        );
+
+        if (!exists) {
+
+            socket.emit('error', { message: 'Group does not exist.' });
+            return;
+
+        }
+
+        const meta = await handleRedisOperation(
+
+            () => valkeyClient.hgetall(GROUP_KEYS.meta(groupId)),
+            'group meta get'
+
+        );
+
+        if (!meta || meta.owner !== socket.username) {
+
+            socket.emit('error', { message: 'Only the group owner can delete this group.' });
+            return;
+
+        }
+
+        // Notify room before deletion
+        io.to(groupId).emit('group_deleted', { groupId, deletedBy: socket.username });
+        console.log(`[GROUP] Deleted: group=${groupId} by ${socket.username}`);
+
+        // Remove keys
+        await handleRedisOperation(
+
+            () => valkeyClient.del(GROUP_KEYS.messages(groupId)),
+            'group messages delete'
+
+        );
+
+        await handleRedisOperation(
+
+            () => valkeyClient.del(GROUP_KEYS.members(groupId)),
+            'group members delete'
+
+        );
+
+        await handleRedisOperation(
+
+            () => valkeyClient.del(GROUP_KEYS.meta(groupId)),
+            'group meta delete'
+
+        );
+        
+        await handleRedisOperation(
+
+            () => valkeyClient.srem(GROUP_KEYS.GROUPS_SET, groupId),
+            'group registry remove'
+
+        );
+
+        // Make sockets leave the room
+        const room = io.sockets.adapter.rooms.get(groupId);
+        if (room) {
+            for (const socketId of room) {
+                const s = io.sockets.sockets.get(socketId);
+                if (s) s.leave(groupId);
+            }
+        }
+
+    } catch (error) {
+
+        console.error('Failed to delete group:', error);
+        socket.emit('error', { message: 'Failed to delete group. Please try again.' });
+
+    }
+
+}
+
+/**
+ * Leaves a group (removes membership and socket room)
+ * @param {Object} socket
+ * @param {{ groupId: string }} data
+ */
+async function handleLeaveGroup(socket, data) {
+
+    if (!socket.username) {
+
+        socket.emit('error', { message: 'Please select a username before leaving groups.' });
+        return;
+
+    }
+
+    const groupId = (data?.groupId || '').trim();
+    if (!isValidGroupId(groupId)) return;
+
+    try {
+
+        const isMember = await handleRedisOperation(
+
+            () => valkeyClient.sismember(GROUP_KEYS.members(groupId), socket.username),
+            'group membership check'
+
+        );
+
+        if (!isMember) {
+
+            socket.emit('left_group', { groupId, status: 'not_member' });
+            return;
+
+        }
+
+        await handleRedisOperation(
+
+            () => valkeyClient.srem(GROUP_KEYS.members(groupId), socket.username),
+            'group remove member'
+
+        );
+
+        socket.leave(groupId);
+        console.log(`[GROUP] Leave: user=${socket.username} group=${groupId}`);
+        socket.emit('left_group', { groupId, status: 'ok' });
+
+    } catch (error) {
+
+        console.error('Failed to leave group:', error);
+        socket.emit('error', { message: 'Failed to leave group. Please try again.' });
+
+    }
 
 }
 
@@ -399,8 +883,8 @@ async function clearChatHistory(socket) {
         
         logUserActivity('Chat history cleared', socket.id, socket.username);
         
-        // Notify all connected clients that history was cleared
-        io.emit('history_cleared', { 
+        // Notify all connected clients that global history was cleared
+        io.emit('global_history_cleared', { 
             clearedBy: socket.username,
             timestamp: new Date()
             
@@ -438,6 +922,13 @@ io.on('connection', async (socket) => {
     socket.on('message', (data) => handleMessage(socket, data));
     socket.on('load_more_messages', (data) => loadPaginatedMessages(socket, data.offset, data.limit));
     socket.on('clear_history', () => clearChatHistory(socket));
+    // Group chat events
+    socket.on('create_group', (data) => handleCreateGroup(socket, data));
+    socket.on('join_group', (data) => handleJoinGroup(socket, data));
+    socket.on('leave_group', (data) => handleLeaveGroup(socket, data));
+    socket.on('group_message', (data) => handleGroupMessage(socket, data));
+    socket.on('clear_group_history', (data) => handleClearGroupHistory(socket, data));
+    socket.on('delete_group', (data) => handleDeleteGroup(socket, data));
     socket.on('disconnect', () => handleDisconnection(socket));
 
 });

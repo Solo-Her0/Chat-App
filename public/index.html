@@ -22,7 +22,7 @@
 <body>
 
     <!-- 
-        Username Selection Modal - The first thing users see!
+        Username Selection Modal - The first thing users see
         This popup appears when someone visits the chat, asking them to pick a username
         We use a semi-transparent overlay (bg-black bg-opacity-50) to focus attention on the form
         The z-50 class ensures this modal appears above everything else on the page
@@ -30,7 +30,7 @@
     <div id="username-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       
       <!-- 
-          The actual modal box - this is where the magic happens
+          The actual modal box
           We give it a nice white background, rounded corners, and a subtle shadow
           The max-width ensures it doesn't get too wide on large screens
       -->
@@ -39,14 +39,14 @@
         <h2 class="text-xl font-bold mb-4 text-center text-gray-800">Choose Your Username</h2>
         
         <!-- 
-            Username form - this is where users type their desired username
+            Username form - this is where users type their username
             We use a proper form element so users can press Enter to submit
-            The space-y-4 class adds nice spacing between form elements
+            The space-y-4 class adds spacing between form elements
         -->
         <form id="username-form" class="space-y-4">
           
           <!-- 
-              Username input field - where users type their chosen name
+              Username input field - where users type their username
               The focus:ring-2 focus:ring-indigo-500 gives a nice blue glow when clicked
               The transition-colors makes the color changes smooth and pleasant
               The required attribute ensures users can't submit without entering something
@@ -79,7 +79,7 @@
     </div>
 
     <!-- 
-        Main Chat Interface - This is where the real action happens!
+        Main Chat Interface
         We use a full-screen grid layout (h-screen) to make the chat take up the entire browser window
         The flex column layout inside gives us a nice header, scrollable messages area, and fixed input at the bottom
     -->
@@ -89,23 +89,38 @@
         
         <!-- 
             Chat Header - The top bar that shows "Chat" and stays fixed
-            We give it a subtle border at the bottom to separate it from the messages
             The bg-white ensures it has a clean background that stands out
         -->
         <header class="border-b border-gray-200 py-4 px-4 bg-white">
           
           <div class="flex justify-between items-center">
-            <h1 class="text-lg font-bold text-gray-800">Chat</h1>
+            <div class="flex items-center space-x-3">
+              <h1 class="text-lg font-bold text-gray-800">Chat</h1>
+              <span id="current-group-label" class="text-sm text-gray-500"></span>
+            </div>
             
             <!-- 
                 Chat Controls - Buttons for managing chat history
-                We put these in the header so they're always accessible
+                We put these in the header so they're easier to find.
             -->
-            <div class="flex space-x-2">
+            <div class="flex space-x-2 items-center">
+              <input id="group-id-input" type="text" placeholder="Group ID" 
+                     class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <button id="create-group-btn" 
+                      class="bg-indigo-500 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-600 transition-colors">Create</button>
+              <button id="join-group-btn" 
+                      class="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600 transition-colors">Join</button>
+              <button id="leave-group-btn" 
+                      class="bg-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-400 transition-colors">Leave</button>
+              <button id="clear-group-btn" 
+                      class="bg-orange-500 text-white px-3 py-1 rounded-md text-sm hover:bg-orange-600 transition-colors">Clear Group</button>
+              <button id="delete-group-btn" 
+                      class="bg-red-600 text-white px-3 py-1 rounded-md text-sm hover:bg-red-700 transition-colors">Delete Group</button>
               
               <!-- 
                   Load More Messages Button - Loads older messages when clicked
                   This button appears at the top of the messages area
+                  I haven't exactly gotten this to work, but hey it's a nice addition to try to get to work.
               -->
               <button id="load-more-btn" 
                       class="hidden bg-gray-500 text-white px-3 py-1 rounded-md text-sm hover:bg-gray-600 transition-colors">
@@ -139,7 +154,7 @@
             <!-- 
                 This is where JavaScript will dynamically add all the chat messages
                 Each message gets added as a new <li> element with the user's name, timestamp, and message
-                The space-y-4 class adds nice spacing between each message
+                The space-y-4 class adds spacing between each message
             -->
           </ul>
           
@@ -156,10 +171,9 @@
           <form id="message-form" class="flex h-28 w-full flex-col space-y-2 rounded-2xl border-2 border-gray-200 p-3 bg-white">
             
             <!-- 
-                Message textarea - where users type their thoughts
+                Message textarea - where users type
                 We set it to 3 rows initially, but it can grow if needed
                 The resize-none prevents users from manually resizing it (we want it to stay consistent)
-                The placeholder text gives users a hint about what to do
             -->
             <textarea id="message" 
                       placeholder="Type your message..." 
@@ -173,10 +187,9 @@
             <div class="flex justify-end">
               
               <!-- 
-                  Send button - the paper plane icon that sends messages
+                  Send button
                   We use a nice rounded design with hover effects
-                  The SVG is a paper plane icon that's universally recognized for "send"
-                  The transition-colors makes the hover effect smooth
+                  The SVG is a paper plane icon that's universally recognized (I think)
               -->
               <button type="submit" id="send-message" 
                       class="rounded-xl bg-indigo-500 p-2 hover:bg-indigo-600 transition-colors">

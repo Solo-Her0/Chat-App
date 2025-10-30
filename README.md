@@ -12,7 +12,7 @@ This is my chat application project for SHSU COSC 2327 Introduction to Computer 
 
 - ~~Add chat history and persistance.~~ ✅ **COMPLETED**
 - ~~Remove the hard coded user I have for testing purposed and figure out how to implement a way to decide a username upon connection to the chat app.~~ ✅ **COMPLETED**
-- Add the ability to create and join group chats.
+- ~~Add the ability to create and join group chats.~~ ✅ **COMPLETED**
 - Figure out how to add a text to speech voice that sounds like Donalad Duck.
 - If I figure out how to add the first text to speech voice add more for fun.
 - Add some CSS stuff to make everything look nicer than a giant white page with "Chat" in the top left corner.
@@ -28,10 +28,14 @@ This is my chat application project for SHSU COSC 2327 Introduction to Computer 
 - **Modern UI**: Clean, responsive interface built with Tailwind CSS featuring a modal-based username selection
 - **Multiple Input Methods**: Send messages by clicking the send button or pressing Enter
 - **Smart Timestamps**: Messages show time for today, full date for older messages
-- **User Avatars**: Each message displays a colorful avatar with the user's initial
-- **Group Chat**: Messages get broadcast to everyone connected to the chat
-- **Chat History Management**: Clear all chat history with confirmation dialog
-- **Message Pagination**: Load more older messages with "Load More" button
+- **User Avatars**: Each message displays an avatar with the user's first initial
+- **Group Chat (Global Lobby)**: Messages get broadcast to everyone connected to the chat
+- **Private Group Chats**: Create or join private groups using a Group ID (letters, numbers, _ and -)
+- **Scoped Visibility**: When inside a private group, global lobby messages are hidden
+- **Chat History Management (Global)**: Clear global chat history with confirmation dialog
+- **Group History Management**: Clear chat history for just the current group (does not affect global or other groups)
+- **Independent Clears**: Clearing global history never clears group history, and vice versa
+- **Server Logs**: Console logs for group lifecycle events (create group chat, clear history (group chat or global), delete group chat)
 - **Static File Serving**: Serves up HTML, CSS, and JavaScript files from the public folder
 - **Error Handling**: Error messages for username conflicts and validation issues
 
@@ -106,6 +110,7 @@ Here's how to get it running:
 6. **Open the chat app:**
    - Fire up your browser and head to `http://localhost:3000`
    - You'll see the chat interface ready to use with full chat history.
+   - To create/join a private group: enter a Group ID in the header input, then click "Create" or "Join". While in a group, messages only go to that group.
 
 ## How It All Works
 
@@ -123,8 +128,9 @@ Here's the behind-the-scenes magic:
    - You type a message and hit send (or press Enter)
    - The message gets sent to the server via Socket.IO
    - Server stores the message in Valkey database
-   - Server broadcasts it to everyone connected
-   - All connected clients receive and display the message
+   - If you're in the global lobby, the server broadcasts to everyone connected to the lobby
+   - If you're in a private group, the server stores and broadcasts to that group's room only
+   - Clients in a private group do not display global lobby messages until they leave the group
 7. **Smart Features**: 
    - Timestamps show time for same day for recent messages, full date for older messages
    - User avatars display the first letter of the username
@@ -132,8 +138,9 @@ Here's the behind-the-scenes magic:
    - Complete chat history is preserved and loaded for new users
    - Real-time username conflict detection and error handling
    - "Load More" button to fetch older messages in batches of 50
-   - "Clear History" button with confirmation dialog to prevent accidental deletion
-   - All connected users are notified when history is cleared
+   - "Clear History" (Global) and "Clear Group" (Private Group) actions, each scoped to their own chat
+   - Global history clear is emitted as a global-only event; group history clear is emitted to that group's room
+   - Server logs when groups are created, joined, left, cleared, and deleted
 
 ## Dependencies
 
