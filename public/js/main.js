@@ -1,25 +1,21 @@
 // Chat Application - Main Client Logic
 // =====================================
-// This file handles everything that happens in the user's browser
-// It's like the brain of the chat app. It manages the user interface,
-// talks to the server, and makes sure everything works smoothly
+// Handles everything that happens in the browser
+// Manages the UI, talks to the server, makes sure everything works
 
-// Socket.IO connection - our lifeline to the server
-// This creates a real-time connection so we can send and receive messages instantly
-// Think of it like a phone line that's always open between your browser and the server
+// Socket.IO connection - connects to the server
+// Real-time connection so we can send and receive messages instantly
 const socket = io();
 
-// Application state - keeping track of important information
-// This is like our app's memory - it remembers things between different actions
+// Application state - keeps track of important stuff
 let selectedUsername = null; // We'll store the user's chosen name here once they pick one
 let loadedMessageCount = 0;  // How many messages we've loaded from the server
 let hasMoreMessages = true;  // Whether there are more messages to load
 let currentGroupId = null;   // Currently joined group (if any)
 
 // DOM Elements (cached for performance)
-// Instead of searching for these elements every time we need them,
-// we find them once and store them in this object for quick access
-// This makes our app faster because we don't have to dig through the HTML every time
+// Find them once and store them here instead of searching every time
+// Makes things faster
 const elements = {
     
     usernameModal: document.getElementById('username-modal'),     // The popup where users pick their name
@@ -35,19 +31,18 @@ const elements = {
     clearConfirmationModal: document.getElementById('clear-confirmation-modal'), // Confirmation modal
     confirmClearBtn: document.getElementById('confirm-clear'),    // Confirm clear button
     cancelClearBtn: document.getElementById('cancel-clear'),       // Cancel clear button
-    groupIdInput: document.getElementById('group-id-input'),
-    createGroupBtn: document.getElementById('create-group-btn'),
-    joinGroupBtn: document.getElementById('join-group-btn'),
-    leaveGroupBtn: document.getElementById('leave-group-btn'),
-    clearGroupBtn: document.getElementById('clear-group-btn'),
-    deleteGroupBtn: document.getElementById('delete-group-btn'),
-    currentGroupLabel: document.getElementById('current-group-label')
+    groupIdInput: document.getElementById('group-id-input'),     // The text input where users enter group IDs
+    createGroupBtn: document.getElementById('create-group-btn'),   // Button to create a new private group
+    joinGroupBtn: document.getElementById('join-group-btn'),       // Button to join an existing group
+    leaveGroupBtn: document.getElementById('leave-group-btn'),      // Button to leave the current group
+    clearGroupBtn: document.getElementById('clear-group-btn'),     // Button to clear the current group's history
+    deleteGroupBtn: document.getElementById('delete-group-btn'),  // Button to delete the current group (owner only)
+    currentGroupLabel: document.getElementById('current-group-label') // Label showing which group you're in
     
 };
 
-// Configuration - all the rules and settings for our app
-// This is like a settings file - we put all our "magic numbers" and rules here
-// so if we need to change something later, we only have to change it in one place
+// Configuration - all the rules and settings
+// Put all the "magic numbers" and rules here so we only have to change them in one place
 const CONFIG = {
     
     username: {
@@ -66,12 +61,11 @@ const CONFIG = {
 // We put them at the top so they're available everywhere in our code
 
 /**
- * Validates username according to application rules
- * This function checks if a username is "good enough" to use
- * It's like a bouncer at a club - it decides who gets in and who doesn't
+ * Validates username according to rules
+ * Checks if a username is valid - length, characters, etc.
  * 
  * @param {string} username - The username the user wants to use
- * @returns {string|null} - If there's a problem, it returns an error message. If everything's fine, it returns null
+ * @returns {string|null} - Error message if there's a problem, null if it's good
  */
 function validateUsername(username) {
     
@@ -95,10 +89,9 @@ function validateUsername(username) {
 
 /**
  * Shows error message in the username form
- * When something goes wrong with the username (like it's already taken),
- * we need to tell the user what happened. This function makes the error visible.
+ * Makes the error visible so the user knows what went wrong
  * 
- * @param {string} message - The error message we want to show the user
+ * @param {string} message - The error message to show
  */
 function showUsernameError(message) {
     
@@ -109,8 +102,7 @@ function showUsernameError(message) {
 
 /**
  * Hides username error message
- * When the user fixes their username or tries again, we hide any old error messages
- * This keeps the interface clean and not confusing
+ * Hides old errors to keep the interface clean
  */
 function hideUsernameError() {
     
@@ -120,11 +112,10 @@ function hideUsernameError() {
 
 /**
  * Formats timestamp for display
- * Timestamps are stored as dates, but we want to show them in a nice, human-readable format
- * This function decides whether to show just the time (if it's today) or the full date and time
+ * Shows just the time if it's today, or full date if it's older
  * 
- * @param {Date|string} timestamp - The timestamp we want to format
- * @returns {string} - A nicely formatted time string that humans can understand
+ * @param {Date|string} timestamp - The timestamp to format
+ * @returns {string} - Formatted time string
  */
 function formatTimestamp(timestamp) {
     
@@ -141,15 +132,13 @@ function formatTimestamp(timestamp) {
 
 // Username Selection Logic
 // ========================
-// This section handles everything related to picking a username
-// It's like the "getting to know you" part of the chat experience
+// Handles picking a username
 
 /**
  * Handles username form submission
- * When the user clicks "Join Chat" or presses Enter, this function runs
- * It checks if their username is valid, and if so, sends it to the server
+ * Checks if username is valid, then sends it to the server
  * 
- * @param {Event} event - The form submit event (contains information about what happened)
+ * @param {Event} event - The form submit event
  */
 function handleUsernameSubmit(event) {
     
@@ -174,10 +163,9 @@ function handleUsernameSubmit(event) {
 
 /**
  * Handles successful username acceptance from server
- * When the server says "yes, that username is available", this function runs
- * It hides the username popup and shows the main chat interface
+ * Hides the username popup and shows the chat interface
  * 
- * @param {Object} data - The server's response (contains the accepted username)
+ * @param {Object} data - Server response with accepted username
  */
 function handleUsernameAccepted(data) {
     
@@ -191,10 +179,9 @@ function handleUsernameAccepted(data) {
 
 /**
  * Handles username taken error from server
- * When the server says "sorry, someone else is already using that username", this function runs
- * It shows the error message so the user knows they need to pick a different name
+ * Shows the error so they know to pick a different name
  * 
- * @param {Object} data - The server's error response (contains the error message)
+ * @param {Object} data - Server error response with message
  */
 function handleUsernameTaken(data) {
     
@@ -204,18 +191,16 @@ function handleUsernameTaken(data) {
 
 // Message Handling
 // ================
-// This section handles everything related to sending and displaying messages
-// It's like the "actual chatting" part of the chat experience
+// Handles sending and displaying messages
 
 /**
  * Generates HTML for a chat message
- * When we receive a message, we need to turn it into HTML that looks nice
- * This function creates the HTML structure for displaying a single message
+ * Creates the HTML structure for displaying a message
  * 
  * @param {string} username - Who sent the message
  * @param {Date|string} timestamp - When they sent it
  * @param {string} message - What they said
- * @returns {string} - A complete HTML string that we can add to the page
+ * @returns {string} - HTML string to add to the page
  */
 function generateMessageHTML(username, timestamp, message) {
     
@@ -246,13 +231,12 @@ function generateMessageHTML(username, timestamp, message) {
 
 /**
  * Adds a message to the chat display
- * This function takes a message and actually puts it on the screen
- * It also scrolls to the bottom so users can see the newest message
+ * Puts the message on screen and scrolls to bottom for new messages
  * 
  * @param {string} username - Who sent the message
  * @param {Date|string} timestamp - When they sent it
  * @param {string} message - What they said
- * @param {boolean} prepend - If true, adds message at the top (for loading older messages)
+ * @param {boolean} prepend - If true, adds at top (for loading older messages)
  */
 function addMessageToChat(username, timestamp, message, prepend = false) {
     
@@ -271,6 +255,10 @@ function addMessageToChat(username, timestamp, message, prepend = false) {
     
 }
 
+/**
+ * Updates the current group label in the header
+ * Shows which group you're in, or clears it if you're not in one
+ */
 function updateCurrentGroupLabel() {
 
     if (currentGroupId) {
@@ -287,7 +275,7 @@ function updateCurrentGroupLabel() {
 
 /**
  * Loads more messages from the server
- * This function requests older messages when the user clicks "Load More"
+ * Requests older messages when you click "Load More"
  */
 function loadMoreMessages() {
     
@@ -307,9 +295,9 @@ function loadMoreMessages() {
 
 /**
  * Handles loading more messages from server
- * This function processes the response when we request more messages
+ * Processes the response and adds messages to the chat
  * 
- * @param {Object} data - The server's response with messages and pagination info
+ * @param {Object} data - Server response with messages and pagination info
  */
 function handleLoadMoreMessages(data) {
     
@@ -337,7 +325,7 @@ function handleLoadMoreMessages(data) {
 
 /**
  * Shows the clear history confirmation modal
- * This function displays a safety check before clearing all messages
+ * Safety check before clearing
  */
 function showClearConfirmation() {
     
@@ -347,7 +335,7 @@ function showClearConfirmation() {
 
 /**
  * Hides the clear history confirmation modal
- * This function closes the confirmation dialog
+ * Closes the confirmation dialog
  */
 function hideClearConfirmation() {
     
@@ -357,7 +345,7 @@ function hideClearConfirmation() {
 
 /**
  * Clears all messages from the chat display
- * This function removes all messages from the screen
+ * Removes all messages from the screen
  */
 function clearChatDisplay() {
     
@@ -370,7 +358,7 @@ function clearChatDisplay() {
 
 /**
  * Handles clearing chat history
- * This function sends the clear request to the server
+ * Sends the clear request to the server
  */
 function handleClearHistory() {
     
@@ -384,49 +372,78 @@ function handleClearHistory() {
 
 // Group Controls
 // ==============
+// Handles private group chat stuff
+
+/**
+ * Handles creating a new private group
+ * Takes the group ID from input and asks server to create it
+ */
 function handleCreateGroup() {
 
     const groupId = (elements.groupIdInput.value || '').trim();
-    if (!groupId) return;
+    if (!groupId) return; // Don't create if there's no group ID
     socket.emit('create_group', { groupId, name: groupId });
 
 }
 
+/**
+ * Handles joining an existing private group
+ * Takes the group ID from input and asks server to add them
+ */
 function handleJoinGroup() {
 
     const groupId = (elements.groupIdInput.value || '').trim();
-    if (!groupId) return;
+    if (!groupId) return; // Don't join if there's no group ID
     socket.emit('join_group', { groupId });
 
 }
 
+/**
+ * Handles leaving the current private group
+ * Tells server to remove them and switches back to global chat
+ * Requests global history so they can see what's been said
+ */
 function handleLeaveGroup() {
 
-    // No server call needed for now; simply switch context back to global
+    if (!currentGroupId) return; // Can't leave if we're not in a group
+    const groupId = currentGroupId;
+    // Ask server to leave (updates membership and socket room)
+    socket.emit('leave_group', { groupId });
+    // Switch context back to global immediately
     currentGroupId = null;
     clearChatDisplay();
     updateCurrentGroupLabel();
+    // Request fresh global history so they can see what's been said in the lobby
+    socket.emit('request_global_history');
 
 }
 
+/**
+ * Handles clearing the current group's chat history
+ * Asks server to delete all messages in the group (group stays)
+ */
 function handleClearGroup() {
 
-    if (!currentGroupId) return;
+    if (!currentGroupId) return; // Can't clear if we're not in a group
     socket.emit('clear_group_history', { groupId: currentGroupId });
 
 }
 
+/**
+ * Handles deleting the current private group entirely
+ * Asks server to permanently remove the group
+ * Supposed to be owner only but I'm not sure if that's working
+ */
 function handleDeleteGroup() {
 
-    if (!currentGroupId) return;
+    if (!currentGroupId) return; // Can't delete if we're not in a group
     socket.emit('delete_group', { groupId: currentGroupId });
 
 }
 
 /**
  * Handles sending a message
- * When the user clicks send or presses Enter, this function runs
- * It takes their message and sends it to the server
+ * Takes the message and sends it to server (group or global)
  * 
  * @param {Event} event - The form submit event
  */
@@ -468,8 +485,7 @@ function handleMessageSubmit(event) {
 
 // Socket Event Handlers
 // =====================
-// These functions listen for messages from the server
-// Think of them as "mailboxes" - when the server sends us something, the right function picks it up
+// Listen for messages from the server
 
 // When the server says "yes, your username is good to go"
 socket.on('username_accepted', handleUsernameAccepted);
@@ -478,16 +494,23 @@ socket.on('username_accepted', handleUsernameAccepted);
 socket.on('username_taken', handleUsernameTaken);
 
 // When someone sends a global message (including ourselves)
+// This only shows up when you're in the global lobby, not when you're in a private group
 socket.on('message', function(data) {
     
     // Only show global messages when not inside a group context
+    // When you're in a group, you shouldn't see what's happening in the global chat
     if (!currentGroupId) {
         addMessageToChat(data.username, data.timestamp, data.message);
     }
     
 });
 
-// Group events
+// Group Chat Events
+// =================
+// Handle all the events related to private group chats
+
+// Server confirms we created a new group
+// Switches view to that group and clears old messages
 socket.on('group_created', function(data) {
 
     currentGroupId = data.groupId;
@@ -496,11 +519,14 @@ socket.on('group_created', function(data) {
 
 });
 
+// Server confirms we joined a group
+// Loads all the group's historical messages
 socket.on('group_joined', function(data) {
 
     currentGroupId = data.groupId;
     clearChatDisplay();
     updateCurrentGroupLabel();
+    // Add all the historical messages from this group
     (data.messages || []).forEach(msg => {
 
         addMessageToChat(msg.username, msg.timestamp, msg.message);
@@ -509,6 +535,8 @@ socket.on('group_joined', function(data) {
 
 });
 
+// Someone sent a message in the current group
+// Only displays if it's for the group we're viewing
 socket.on('group_message', function(data) {
 
     if (data.groupId === currentGroupId) {
@@ -519,6 +547,8 @@ socket.on('group_message', function(data) {
 
 });
 
+// Someone cleared the history of the current group
+// Removes all messages from display (group stays)
 socket.on('group_history_cleared', function(data) {
 
     if (data.groupId === currentGroupId) {
@@ -529,14 +559,20 @@ socket.on('group_history_cleared', function(data) {
 
 });
 
-// Global history cleared should not affect users currently viewing a group
+// Someone cleared the global chat history
+// Shouldn't affect users in a group - they're in their own space
 socket.on('global_history_cleared', function(data) {
+    
+    // Only clear the display if we're actually in the global lobby
+    // If we're in a group, we don't want to lose our group messages
     if (!currentGroupId) {
         clearChatDisplay();
         console.log(`Global chat history cleared by ${data.clearedBy}`);
     }
 });
 
+// Current group got deleted
+// Clears display and switches back to global lobby
 socket.on('group_deleted', function(data) {
 
     if (data.groupId === currentGroupId) {
@@ -544,6 +580,24 @@ socket.on('group_deleted', function(data) {
         clearChatDisplay();
         currentGroupId = null;
         updateCurrentGroupLabel();
+        
+    }
+
+});
+
+// Server confirms we left a group
+// Safety check - requests global history again just in case we missed it
+socket.on('left_group', function(data) {
+
+    if (data.status === 'ok') {
+
+        // If user left while UI was already in lobby, ensure lobby history is present
+        // This is like a safety net to make sure we have the latest global messages
+        if (!currentGroupId) {
+
+            socket.emit('request_global_history');
+
+        }
         
     }
 
@@ -602,8 +656,7 @@ socket.on('error', function(data) {
 
 // Event Listeners
 // ===============
-// These functions listen for things the user does (like clicking buttons or pressing keys)
-// They're like "listeners" that wait for specific actions and then do something in response
+// Listen for things the user does (clicking buttons, pressing keys)
 
 // This runs when the page finishes loading
 document.addEventListener('DOMContentLoaded', function() {
@@ -651,7 +704,7 @@ document.addEventListener('DOMContentLoaded', function() {
     elements.confirmClearBtn.addEventListener('click', handleClearHistory);
     elements.cancelClearBtn.addEventListener('click', hideClearConfirmation);
 
-    // Group controls
+    // Set up the group control buttons - these handle creating, joining, leaving, clearing, and deleting groups
     elements.createGroupBtn.addEventListener('click', handleCreateGroup);
     elements.joinGroupBtn.addEventListener('click', handleJoinGroup);
     elements.leaveGroupBtn.addEventListener('click', handleLeaveGroup);

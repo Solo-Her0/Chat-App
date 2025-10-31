@@ -3,7 +3,7 @@
 <head>
     <!-- 
         Basic HTML setup - these meta tags tell the browser how to handle our page
-        UTF-8 ensures we can use emojis and special characters in chat messages
+        UTF-8 lets us use emojis and special characters in messages
     -->
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -11,9 +11,9 @@
     <title>Chat</title>
 
     <!-- 
-        Loading our external libraries
-        Tailwind CSS: Makes styling super easy with utility classes (no need to write custom CSS)
-        Socket.IO: Lets us talk to the server in real-time without refreshing the page
+        Loading external libraries
+        Tailwind CSS: makes styling easy, don't have to write custom CSS
+        Socket.IO: lets us talk to the server in real-time without refreshing
     -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
@@ -22,50 +22,47 @@
 <body>
 
     <!-- 
-        Username Selection Modal - The first thing users see
-        This popup appears when someone visits the chat, asking them to pick a username
-        We use a semi-transparent overlay (bg-black bg-opacity-50) to focus attention on the form
-        The z-50 class ensures this modal appears above everything else on the page
+        Username Selection Modal - first thing users see
+        Popup that asks them to pick a username when they visit
+        z-50 makes it appear above everything else
     -->
     <div id="username-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       
       <!-- 
           The actual modal box
-          We give it a nice white background, rounded corners, and a subtle shadow
-          The max-width ensures it doesn't get too wide on large screens
+          White background with rounded corners and shadow
+          max-width keeps it from getting too wide on big screens
       -->
       <div class="bg-white rounded-lg p-6 w-96 max-w-md mx-4 shadow-xl">
         
         <h2 class="text-xl font-bold mb-4 text-center text-gray-800">Choose Your Username</h2>
         
         <!-- 
-            Username form - this is where users type their username
-            We use a proper form element so users can press Enter to submit
-            The space-y-4 class adds spacing between form elements
+            Username form - where users type their username
+            Using a form so they can press Enter to submit
+            space-y-4 adds spacing between stuff
         -->
         <form id="username-form" class="space-y-4">
           
           <!-- 
-              Username input field - where users type their username
-              The focus:ring-2 focus:ring-indigo-500 gives a nice blue glow when clicked
-              The transition-colors makes the color changes smooth and pleasant
-              The required attribute ensures users can't submit without entering something
+              Username input field
+              focus:ring-indigo-500 gives a blue glow when clicked
+              required keeps them from submitting empty
           -->
           <input type="text" id="username-input" placeholder="Enter your username" 
                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
                  required>
           
           <!-- 
-              Error message area - this stays hidden until there's a problem
-              We show validation errors here (like "username too short" or "already taken")
-              The hidden class keeps it invisible until we need to show an error
+              Error message area - stays hidden until there's a problem
+              Shows errors like "username too short" or "already taken"
+              hidden class keeps it invisible until needed
           -->
           <div id="username-error" class="text-red-500 text-sm hidden"></div>
           
           <!-- 
-              Join Chat button - the big blue button that gets users into the chat
-              We use hover:bg-indigo-600 to make it slightly darker when you hover over it
-              The transition-colors makes the hover effect smooth and professional
+              Join Chat button - the big blue button
+              hover:bg-indigo-600 makes it darker on hover
           -->
           <button type="submit" id="join-chat" 
                   class="w-full bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors">
@@ -80,47 +77,82 @@
 
     <!-- 
         Main Chat Interface
-        We use a full-screen grid layout (h-screen) to make the chat take up the entire browser window
-        The flex column layout inside gives us a nice header, scrollable messages area, and fixed input at the bottom
+        Full-screen layout so chat takes up the whole window
+        Header at top, scrollable messages in middle, input at bottom
     -->
     <div class="grid h-screen">
       
       <div class="flex max-h-screen flex-col">
         
         <!-- 
-            Chat Header - The top bar that shows "Chat" and stays fixed
-            The bg-white ensures it has a clean background that stands out
+            Chat Header - top bar with "Chat" title
+            Stays fixed at the top
         -->
         <header class="border-b border-gray-200 py-4 px-4 bg-white">
           
           <div class="flex justify-between items-center">
             <div class="flex items-center space-x-3">
               <h1 class="text-lg font-bold text-gray-800">Chat</h1>
+              <!-- 
+                  Current Group Label - shows which group you're in (if any)
+                  Appears next to "Chat" when you're in a group
+                  Empty when you're in the global lobby
+              -->
               <span id="current-group-label" class="text-sm text-gray-500"></span>
             </div>
             
             <!-- 
-                Chat Controls - Buttons for managing chat history
-                We put these in the header so they're easier to find.
+                Chat Controls - buttons for managing history and groups
+                Put these in the header so they're easy to find
+                Group controls let you create, join, and manage private groups
             -->
             <div class="flex space-x-2 items-center">
+              <!-- 
+                  Group ID Input - where you type the group ID you want to create or join
+                  Group IDs are 2-50 characters, letters, numbers, underscores, and hyphens
+              -->
               <input id="group-id-input" type="text" placeholder="Group ID" 
                      class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <!-- 
+                  Create Group Button - creates a new private group with the ID from input
+                  Only one group with a given ID can exist
+                  Creator becomes the owner automatically
+              -->
               <button id="create-group-btn" 
                       class="bg-indigo-500 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-600 transition-colors">Create</button>
+              <!-- 
+                  Join Group Button - joins an existing private group
+                  Need to know the group ID to join (like a room number)
+                  Shows all the group's historical messages once joined
+              -->
               <button id="join-group-btn" 
                       class="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600 transition-colors">Join</button>
+              <!-- 
+                  Leave Group Button - leaves the current private group
+                  Switches you back to global lobby and loads global history
+                  Won't get group messages anymore after leaving
+              -->
               <button id="leave-group-btn" 
                       class="bg-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-400 transition-colors">Leave</button>
+              <!-- 
+                  Clear Group Button - clears all messages from current group
+                  Only affects this group, not global chat or other groups
+                  Group stays, just messages get deleted
+              -->
               <button id="clear-group-btn" 
                       class="bg-orange-500 text-white px-3 py-1 rounded-md text-sm hover:bg-orange-600 transition-colors">Clear Group</button>
+              <!-- 
+                  Delete Group Button - permanently deletes the current group
+                  Supposed to be owner only but I'm not sure if that's working right
+                  Removes everything and kicks everyone out
+              -->
               <button id="delete-group-btn" 
                       class="bg-red-600 text-white px-3 py-1 rounded-md text-sm hover:bg-red-700 transition-colors">Delete Group</button>
               
               <!-- 
-                  Load More Messages Button - Loads older messages when clicked
-                  This button appears at the top of the messages area
-                  I haven't exactly gotten this to work, but hey it's a nice addition to try to get to work.
+                  Load More Messages Button - loads older messages
+                  Appears when there are more messages to load
+                  Fetches in batches of 50
               -->
               <button id="load-more-btn" 
                       class="hidden bg-gray-500 text-white px-3 py-1 rounded-md text-sm hover:bg-gray-600 transition-colors">
@@ -128,8 +160,10 @@
               </button>
               
               <!-- 
-                  Clear History Button - Clears all chat history
-                  I decided to use a red color, because who doesn't want to press the big red button?
+                  Clear History Button - clears all global chat history
+                  Only clears global lobby, not private group messages
+                  Red color because it's destructive
+                  Has a confirmation modal so you don't delete by accident
               -->
               <button id="clear-history-btn" 
                       class="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 transition-colors">
@@ -143,37 +177,37 @@
         </header>
         
         <!-- 
-            Messages Container - This is where all the chat messages live
-            The flex-1 makes it take up all available space between header and footer
-            overflow-y-auto lets users scroll through messages when there are too many to fit
-            We use a light gray background (bg-gray-50) to make the messages stand out
+            Messages Container - where all the chat messages go
+            flex-1 makes it take up space between header and footer
+            overflow-y-auto lets you scroll when there are too many messages
+            Light gray background so messages stand out
         -->
         <main class="flex-1 overflow-y-auto bg-gray-50">
           
           <ul id="chat-messages" class="space-y-4 p-4">
             <!-- 
-                This is where JavaScript will dynamically add all the chat messages
-                Each message gets added as a new <li> element with the user's name, timestamp, and message
-                The space-y-4 class adds spacing between each message
+                JavaScript adds all the chat messages here
+                Each message becomes a new <li> with username, timestamp, and message
+                space-y-4 adds spacing between messages
             -->
           </ul>
           
         </main>
         
         <!-- 
-            Message Input Area - Where users type their messages
-            This stays fixed at the bottom so it's always accessible
-            We use a form so users can press Enter to send messages
-            The border-t gives it a nice separation from the messages above
+            Message Input Area - where you type messages
+            Stays fixed at the bottom so it's always there
+            Using a form so you can press Enter to send
+            border-t separates it from messages above
         -->
         <footer class="p-4 bg-white border-t border-gray-200">
           
           <form id="message-form" class="flex h-28 w-full flex-col space-y-2 rounded-2xl border-2 border-gray-200 p-3 bg-white">
             
             <!-- 
-                Message textarea - where users type
-                We set it to 3 rows initially, but it can grow if needed
-                The resize-none prevents users from manually resizing it (we want it to stay consistent)
+                Message textarea - where you type
+                Starts at 3 rows but can grow
+                resize-none stops you from resizing it manually
             -->
             <textarea id="message" 
                       placeholder="Type your message..." 
@@ -181,15 +215,15 @@
                       rows="3"></textarea>
             
             <!-- 
-                Send button container - we put the button in its own div for better control
-                The flex justify-end pushes the button to the right side
+                Send button container - separate div for better control
+                flex justify-end pushes button to the right
             -->
             <div class="flex justify-end">
               
               <!-- 
                   Send button
-                  We use a nice rounded design with hover effects
-                  The SVG is a paper plane icon that's universally recognized (I think)
+                  Rounded design with hover effects
+                  SVG is a paper plane icon (I think)
               -->
               <button type="submit" id="send-message" 
                       class="rounded-xl bg-indigo-500 p-2 hover:bg-indigo-600 transition-colors">
@@ -209,15 +243,15 @@
     </div>
 
     <!-- 
-        Clear History Confirmation Modal - Safety check before clearing
-        This modal appears when users click "Clear History" to prevent accidental deletion
-        We use a semi-transparent overlay and centered modal for focus
+        Clear History Confirmation Modal - safety check before clearing
+        Shows up when you click "Clear History" so you don't delete by accident
+        Semi-transparent overlay with centered modal
     -->
     <div id="clear-confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
       
       <!-- 
-          The confirmation modal box - asks user to confirm the destructive action
-          We give it a nice white background, rounded corners, and a subtle shadow
+          Confirmation modal box - asks you to confirm before deleting
+          White background with rounded corners and shadow
       -->
       <div class="bg-white rounded-lg p-6 w-96 max-w-md mx-4 shadow-xl">
         
@@ -229,7 +263,7 @@
         
         <!-- 
             Confirmation buttons - Yes to confirm, No to cancel
-            We use different colors to make the choice clear
+            Different colors so you know which is which
         -->
         <div class="flex space-x-3">
           
@@ -249,7 +283,7 @@
       
     </div>
 
-    <!-- Custom JavaScript: Main application logic for chat functionality -->
+    <!-- Main JavaScript file - handles all the chat functionality -->
     <script src="/js/main.js"></script>
 </body>
 </html>

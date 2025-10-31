@@ -110,13 +110,15 @@ const MESSAGE_KEYS = {
 
 // Group Chat Keys
 // ===============
-// We namespace all group-related data under these patterns
+// These are the keys we use to store group-related data in Redis
+// We namespace all group-related data under these patterns so we can keep everything organized
+// Think of it like having different filing cabinets for different types of group information
 const GROUP_KEYS = {
 
-    GROUPS_SET: 'groups',                                 // Set of all group IDs
-    meta: (groupId) => `group:${groupId}:meta`,           // Hash: { name, owner, createdAt }
-    members: (groupId) => `group:${groupId}:members`,     // Set of usernames in the group
-    messages: (groupId) => `group:${groupId}:messages`    // List of messages for the group
+    GROUPS_SET: 'groups',                                 // Set of all group IDs - keeps track of which groups exist
+    meta: (groupId) => `group:${groupId}:meta`,           // Hash: stores group metadata like name, owner, and when it was created
+    members: (groupId) => `group:${groupId}:members`,     // Set: keeps track of which usernames are members of the group
+    messages: (groupId) => `group:${groupId}:messages`    // List: stores all the messages sent in this group
 
 };
 
@@ -209,24 +211,30 @@ function handleUsernameSelection(socket, data) {
 }
 
 /**
- * Validates a groupId string
- * @param {string} groupId
- * @returns {boolean}
+ * Validates a group ID string
+ * check if a group ID is valid before we try to use it
+ * Makes sure it's 2-50 characters with letters, numbers, underscores, and hyphens
+ * 
+ * @param {string} groupId - The group ID we want to validate
+ * @returns {boolean} - Returns true if the group ID is valid, false otherwise
  */
 function isValidGroupId(groupId) {
 
     if (!groupId || typeof groupId !== 'string') return false;
     const trimmed = groupId.trim();
     if (!trimmed) return false;
-    // allow letters, numbers, underscores and hyphens (2-50 chars)
+    // Allow letters, numbers, underscores and hyphens (2-50 chars)
+    // This ensures group IDs are easy to type and remember
     return /^[a-zA-Z0-9_-]{2,50}$/.test(trimmed);
 
 }
 
 /**
  * Creates a new private group
- * @param {Object} socket
- * @param {{ groupId: string, name?: string }} data
+ * Sets up a new group chat with the given ID. The person who creates it becomes the owner
+ * 
+ * @param {Object} socket - The user's connection to our server
+ * @param {{ groupId: string, name?: string }} data - Contains the group ID and optional name
  */
 async function handleCreateGroup(socket, data) {
 
@@ -263,7 +271,7 @@ async function handleCreateGroup(socket, data) {
 
         }
 
-        // Add group to registry
+        // Add group to registry - this i adding it to our list of existing groupss
         await handleRedisOperation(
 
             () => valkeyClient.sadd(GROUP_KEYS.GROUPS_SET, groupId),
@@ -271,7 +279,7 @@ async function handleCreateGroup(socket, data) {
 
         );
 
-        // Set group metadata
+        // Store group metadata - who created it, when, and what it's called
         const createdAt = new Date().toISOString();
         await handleRedisOperation(
 
@@ -285,7 +293,7 @@ async function handleCreateGroup(socket, data) {
 
         );
 
-        // Add creator as member
+        // Add the creator as a member. they automatically get added when they create the group
         await handleRedisOperation(
 
             () => valkeyClient.sadd(GROUP_KEYS.members(groupId), socket.username),
@@ -293,7 +301,7 @@ async function handleCreateGroup(socket, data) {
 
         );
 
-        // Join socket.io room
+        // Join socket.io room. this should connect them to the group so they get messages
         socket.join(groupId);
 
         console.log(`[GROUP] Created by ${socket.username} → id=${groupId} name="${groupName}" at ${createdAt}`);
@@ -318,8 +326,10 @@ async function handleCreateGroup(socket, data) {
 
 /**
  * Joins an existing group
- * @param {Object} socket
- * @param {{ groupId: string }} data
+ * Adds a user to a group and sends them all the historical messages from that group
+ * 
+ * @param {Object} socket - The user's connection to our server
+ * @param {{ groupId: string }} data - Contains the group ID they want to join
  */
 async function handleJoinGroup(socket, data) {
 
@@ -354,7 +364,7 @@ async function handleJoinGroup(socket, data) {
 
         }
 
-        // Add to members
+        // Add them to the member list
         await handleRedisOperation(
 
             () => valkeyClient.sadd(GROUP_KEYS.members(groupId), socket.username),
@@ -362,12 +372,12 @@ async function handleJoinGroup(socket, data) {
 
         );
 
-        // Join room
+        // Join socket.io room  should make them receive group messages
         socket.join(groupId);
 
         console.log(`[GROUP] Join: user=${socket.username} group=${groupId}`);
 
-        // Load historical messages for the group
+        // Load all the historical messages from this group so they can see what's been said
         const messages = await handleRedisOperation(
 
             () => valkeyClient.lrange(GROUP_KEYS.messages(groupId), 0, -1),
@@ -377,7 +387,7 @@ async function handleJoinGroup(socket, data) {
 
         const parsedMessages = messages.map(item => JSON.parse(item));
 
-        // Load metadata
+        // Get the group's metadata (name, owner, etc.)
         const meta = await handleRedisOperation(
 
             () => valkeyClient.hgetall(GROUP_KEYS.meta(groupId)),
@@ -403,9 +413,11 @@ async function handleJoinGroup(socket, data) {
 }
 
 /**
- * Sends a message to a group
- * @param {Object} socket
- * @param {{ groupId: string, message: string, timestamp: string|Date }} data
+ * Sends a message to a private group
+ * Stores the message and sends it to everyone in that group (not global chat)
+ * 
+ * @param {Object} socket - The user's connection to our server
+ * @param {{ groupId: string, message: string, timestamp: string|Date }} data - The message data and which group it's for
  */
 async function handleGroupMessage(socket, data) {
 
@@ -428,7 +440,7 @@ async function handleGroupMessage(socket, data) {
 
     try {
 
-        // Verify membership
+        // Check if they're actually a member don't want people sending messages to groups they're not in
         const isMember = await handleRedisOperation(
 
             () => valkeyClient.sismember(GROUP_KEYS.members(groupId), socket.username),
@@ -443,6 +455,7 @@ async function handleGroupMessage(socket, data) {
 
         }
 
+        // Create the message object
         const messageData = {
 
             groupId,
@@ -452,6 +465,7 @@ async function handleGroupMessage(socket, data) {
 
         };
 
+        // Store the message in our database so it doesn't get lost
         await handleRedisOperation(
 
             () => valkeyClient.lpush(GROUP_KEYS.messages(groupId), JSON.stringify(messageData)),
@@ -459,7 +473,7 @@ async function handleGroupMessage(socket, data) {
 
         );
 
-        // Broadcast to the room only
+        // Send it to everyone in this group only
         io.to(groupId).emit('group_message', messageData);
         // console.log(`[GROUP] Message: group=${groupId} user=${socket.username}`);
 
@@ -473,9 +487,12 @@ async function handleGroupMessage(socket, data) {
 }
 
 /**
- * Clears history of a group (allowed for any member)
- * @param {Object} socket
- * @param {{ groupId: string }} data
+ * Clears the chat history of a private group
+ * Removes all messages from the group but keeps the group itself
+ * Any member can do this
+ * 
+ * @param {Object} socket - The user's connection to our server
+ * @param {{ groupId: string }} data - Contains the group ID whose history should be cleared
  */
 async function handleClearGroupHistory(socket, data) {
 
@@ -491,6 +508,7 @@ async function handleClearGroupHistory(socket, data) {
 
     try {
 
+        // Check if they're a member - only members should be able to clear history
         const isMember = await handleRedisOperation(
 
             () => valkeyClient.sismember(GROUP_KEYS.members(groupId), socket.username),
@@ -505,6 +523,7 @@ async function handleClearGroupHistory(socket, data) {
 
         }
 
+        // Delete all the messages from this group
         await handleRedisOperation(
 
             () => valkeyClient.del(GROUP_KEYS.messages(groupId)),
@@ -514,6 +533,7 @@ async function handleClearGroupHistory(socket, data) {
 
         console.log(`[GROUP] History cleared: group=${groupId} by ${socket.username}`);
 
+        // This should notify everyone in the group that history was cleared
         io.to(groupId).emit('group_history_cleared', {
             groupId,
             clearedBy: socket.username,
@@ -530,9 +550,12 @@ async function handleClearGroupHistory(socket, data) {
 }
 
 /**
- * Deletes a group (owner only)
- * @param {Object} socket
- * @param {{ groupId: string }} data
+ * Deletes a private group entirely
+ * Removes everything about the group - messages, members, metadata
+ * Anyone who is a member of the group can delete it. I'm not sure how to fix that.
+ * 
+ * @param {Object} socket - The user's connection to our server
+ * @param {{ groupId: string }} data - Contains the group ID to delete
  */
 async function handleDeleteGroup(socket, data) {
 
@@ -562,6 +585,7 @@ async function handleDeleteGroup(socket, data) {
 
         }
 
+        // Get the group's metadata - supposed to check who the owner is but the check doesn't work right
         const meta = await handleRedisOperation(
 
             () => valkeyClient.hgetall(GROUP_KEYS.meta(groupId)),
@@ -569,6 +593,7 @@ async function handleDeleteGroup(socket, data) {
 
         );
 
+        // This is supposed to only let the owner delete it, but it's not working right
         if (!meta || meta.owner !== socket.username) {
 
             socket.emit('error', { message: 'Only the group owner can delete this group.' });
@@ -576,11 +601,11 @@ async function handleDeleteGroup(socket, data) {
 
         }
 
-        // Notify room before deletion
+        // This is supposed to notify everyone in the group that the group was deleted, but it doesn't work.
         io.to(groupId).emit('group_deleted', { groupId, deletedBy: socket.username });
         console.log(`[GROUP] Deleted: group=${groupId} by ${socket.username}`);
 
-        // Remove keys
+        // Delete all the group's data - messages, members, metadata, and remove from registry
         await handleRedisOperation(
 
             () => valkeyClient.del(GROUP_KEYS.messages(groupId)),
@@ -609,7 +634,7 @@ async function handleDeleteGroup(socket, data) {
 
         );
 
-        // Make sockets leave the room
+        // Make everyone leave the room - kick them out since the group doesn't exist anymore
         const room = io.sockets.adapter.rooms.get(groupId);
         if (room) {
             for (const socketId of room) {
@@ -628,9 +653,11 @@ async function handleDeleteGroup(socket, data) {
 }
 
 /**
- * Leaves a group (removes membership and socket room)
- * @param {Object} socket
- * @param {{ groupId: string }} data
+ * Leaves a private group
+ * Removes them from the member list and disconnects their socket from the group
+ * 
+ * @param {Object} socket - The user's connection to our server
+ * @param {{ groupId: string }} data - Contains the group ID they want to leave
  */
 async function handleLeaveGroup(socket, data) {
 
@@ -646,6 +673,7 @@ async function handleLeaveGroup(socket, data) {
 
     try {
 
+        // Check if they're actually a member
         const isMember = await handleRedisOperation(
 
             () => valkeyClient.sismember(GROUP_KEYS.members(groupId), socket.username),
@@ -660,6 +688,7 @@ async function handleLeaveGroup(socket, data) {
 
         }
 
+        // Remove them from the member list
         await handleRedisOperation(
 
             () => valkeyClient.srem(GROUP_KEYS.members(groupId), socket.username),
@@ -667,6 +696,7 @@ async function handleLeaveGroup(socket, data) {
 
         );
 
+        // Disconnect them from the group room - they won't get group messages anymore
         socket.leave(groupId);
         console.log(`[GROUP] Leave: user=${socket.username} group=${groupId}`);
         socket.emit('left_group', { groupId, status: 'ok' });
@@ -918,17 +948,22 @@ io.on('connection', async (socket) => {
     await loadHistoricalMessages(socket);
     
     // Set up listeners for different types of messages they might send
+    // These are like different "mailboxes" that handle specific types of requests
     socket.on('select_username', (data) => handleUsernameSelection(socket, data));
     socket.on('message', (data) => handleMessage(socket, data));
     socket.on('load_more_messages', (data) => loadPaginatedMessages(socket, data.offset, data.limit));
     socket.on('clear_history', () => clearChatHistory(socket));
-    // Group chat events
+    
+    // Group chat events - these handle all the private group stuff
     socket.on('create_group', (data) => handleCreateGroup(socket, data));
     socket.on('join_group', (data) => handleJoinGroup(socket, data));
     socket.on('leave_group', (data) => handleLeaveGroup(socket, data));
     socket.on('group_message', (data) => handleGroupMessage(socket, data));
     socket.on('clear_group_history', (data) => handleClearGroupHistory(socket, data));
     socket.on('delete_group', (data) => handleDeleteGroup(socket, data));
+    
+    // Allow clients to request global history when they leave a group
+    socket.on('request_global_history', () => loadHistoricalMessages(socket));
     socket.on('disconnect', () => handleDisconnection(socket));
 
 });
