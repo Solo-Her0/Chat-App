@@ -170,7 +170,7 @@ async function handleRedisOperation(operation, operationName) {
 // Socket Event Handlers
 // =====================
 // These functions handle different types of messages from users
-// Think of them as different "mailboxes" - when a user sends a specific type of message,
+// Think of them as different "mailboxes"  when a user sends a specific type of message,
 // the right function picks it up and handles it
 
 /**
@@ -508,7 +508,7 @@ async function handleClearGroupHistory(socket, data) {
 
     try {
 
-        // Check if they're a member only members should be able to clear history
+        // Check if they're a member only, members should be able to clear history
         const isMember = await handleRedisOperation(
 
             () => valkeyClient.sismember(GROUP_KEYS.members(groupId), socket.username),
