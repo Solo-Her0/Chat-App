@@ -1,17 +1,17 @@
 // Chat Application Server
 // ======================
-// This is the "brain" of our chat application - it runs the server
+// This is the "brain" of our chat application it runs the server
 // and handles all the heavy lifting like storing messages, managing users,
 // and making sure everyone can talk to each other in real-time
 
-// Dependencies - the tools needed to make this entire project work.
+// Dependencies the tools needed to make this entire project work.
 const express = require('express');        // Express helps us create a web server easily
 const http = require('http');              // HTTP is the basic protocol for web communication
 const { Server } = require('socket.io');   // Socket.IO lets us do real-time communication (like instant messaging)
 const path = require('path');              // Path helps us work with file and folder locations
-const Redis = require('ioredis');          // Redis is our database - it stores all the chat messages
+const Redis = require('ioredis');          // Redis is our database it stores all the chat messages
 
-// Configuration - all the settings for our server
+// Configuration all the settings for our server
 // This is like a settings file where we put all the important numbers and options
 // If we need to change something later, we only have to change it here
 const CONFIG = {
@@ -24,7 +24,7 @@ const CONFIG = {
                               // Redis's default port number
     },
     cors: {    
-                                   // CORS settings - this controls who can connect to our server
+                                   // CORS settings this controls who can connect to our server
         origin: '*',                      // Allow connections from anywhere
         methods: ['GET', 'POST']          // Only allow these types of requests for security
 
@@ -34,7 +34,7 @@ const CONFIG = {
 
 // Redis/Valkey Client Setup
 // =========================
-// Redis is our database - it stores all the chat messages so they don't get lost
+// Redis is our database it stores all the chat messages so they don't get lost
 // We're using Valkey, which is compatible with Redis
 // Think of it like a filing cabinet that never forgets anything
 
@@ -69,14 +69,14 @@ valkeyClient.on('connect', () => {
 const app = express();                    // Create our Express application
 const httpServer = http.createServer(app); // Create an HTTP server that uses our Express app
 
-// Serve static files - this tells Express to serve our HTML, CSS, and JavaScript files
+// Serve static files this tells Express to serve our HTML, CSS, and JavaScript files
 // When someone visits our website, Express will look in the 'public' folder for files to send them
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Routes - these are like different "pages" or "endpoints" on our server
+// Routes these are like different "pages" or "endpoints" on our server
 // When someone visits a specific URL, we tell them what to do
 
-// The main route - when someone visits our website's homepage
+// The main route when someone visits our website's homepage
 app.get('/', (req, res) => {
 
     res.sendFile(path.join(__dirname, '../public/index.html')); // Send them our chat page
@@ -115,7 +115,7 @@ const MESSAGE_KEYS = {
 // Think of it like having different filing cabinets for different types of group information
 const GROUP_KEYS = {
 
-    GROUPS_SET: 'groups',                                 // Set of all group IDs - keeps track of which groups exist
+    GROUPS_SET: 'groups',                                 // Set of all group IDs keeps track of which groups exist
     meta: (groupId) => `group:${groupId}:meta`,           // Hash: stores group metadata like name, owner, and when it was created
     members: (groupId) => `group:${groupId}:members`,     // Set: keeps track of which usernames are members of the group
     messages: (groupId) => `group:${groupId}:messages`    // List: stores all the messages sent in this group
@@ -161,7 +161,7 @@ async function handleRedisOperation(operation, operationName) {
     } catch (error) {
 
         console.error(`Error during ${operationName}:`, error);  // If it fails, log the error
-        throw error;  // Re-throw the error so the calling function knows something went wrong
+        throw error;  // Re throw the error so the calling function knows something went wrong
 
     }
 
@@ -271,7 +271,7 @@ async function handleCreateGroup(socket, data) {
 
         }
 
-        // Add group to registry - this i adding it to our list of existing groupss
+        // Add group to registry this i adding it to our list of existing groupss
         await handleRedisOperation(
 
             () => valkeyClient.sadd(GROUP_KEYS.GROUPS_SET, groupId),
@@ -279,7 +279,7 @@ async function handleCreateGroup(socket, data) {
 
         );
 
-        // Store group metadata - who created it, when, and what it's called
+        // Store group metadata who created it, when, and what it's called
         const createdAt = new Date().toISOString();
         await handleRedisOperation(
 
@@ -508,7 +508,7 @@ async function handleClearGroupHistory(socket, data) {
 
     try {
 
-        // Check if they're a member - only members should be able to clear history
+        // Check if they're a member only members should be able to clear history
         const isMember = await handleRedisOperation(
 
             () => valkeyClient.sismember(GROUP_KEYS.members(groupId), socket.username),
@@ -585,7 +585,7 @@ async function handleDeleteGroup(socket, data) {
 
         }
 
-        // Get the group's metadata - supposed to check who the owner is but the check doesn't work right
+        // Get the group's metadata supposed to check who the owner is but the check doesn't work right
         const meta = await handleRedisOperation(
 
             () => valkeyClient.hgetall(GROUP_KEYS.meta(groupId)),
@@ -605,7 +605,7 @@ async function handleDeleteGroup(socket, data) {
         io.to(groupId).emit('group_deleted', { groupId, deletedBy: socket.username });
         console.log(`[GROUP] Deleted: group=${groupId} by ${socket.username}`);
 
-        // Delete all the group's data - messages, members, metadata, and remove from registry
+        // Delete all the group's data messages, members, metadata, and remove from registry
         await handleRedisOperation(
 
             () => valkeyClient.del(GROUP_KEYS.messages(groupId)),
@@ -696,7 +696,7 @@ async function handleLeaveGroup(socket, data) {
 
         );
 
-        // Disconnect them from the group room - they won't get group messages anymore
+        // Disconnect them from the group room they won't get group messages anymore
         socket.leave(groupId);
         console.log(`[GROUP] Leave: user=${socket.username} group=${groupId}`);
         socket.emit('left_group', { groupId, status: 'ok' });
@@ -735,7 +735,7 @@ async function handleMessage(socket, data) {
     // Create a clean message object with all the information we need
     const messageData = {
 
-        username: socket.username,  // Use the server-stored username (for security)
+        username: socket.username,  // Use the server stored username (for security)
         message: data.message,      // What they said
         timestamp: data.timestamp   // When they said it
 
@@ -937,7 +937,7 @@ async function clearChatHistory(socket) {
 // Socket.IO Connection Handler
 // ============================
 // This is the main function that runs when someone connects to our chat
-// It's like a welcome committee - it greets new users and sets up everything they need
+// It's like a welcome committee it greets new users and sets up everything they need
 
 io.on('connection', async (socket) => {
 
@@ -954,7 +954,7 @@ io.on('connection', async (socket) => {
     socket.on('load_more_messages', (data) => loadPaginatedMessages(socket, data.offset, data.limit));
     socket.on('clear_history', () => clearChatHistory(socket));
     
-    // Group chat events - these handle all the private group stuff
+    // Group chat events these handle all the private group stuff
     socket.on('create_group', (data) => handleCreateGroup(socket, data));
     socket.on('join_group', (data) => handleJoinGroup(socket, data));
     socket.on('leave_group', (data) => handleLeaveGroup(socket, data));

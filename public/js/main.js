@@ -1,13 +1,13 @@
-// Chat Application - Main Client Logic
+// Chat Application Main Client Logic
 // =====================================
 // Handles everything that happens in the browser
 // Manages the UI, talks to the server, makes sure everything works
 
-// Socket.IO connection - connects to the server
+// Socket.IO connection connects to the server
 // Real-time connection so we can send and receive messages instantly
 const socket = io();
 
-// Application state - keeps track of important stuff
+// Application state keeps track of important stuff
 let selectedUsername = null; // We'll store the user's chosen name here once they pick one
 let loadedMessageCount = 0;  // How many messages we've loaded from the server
 let hasMoreMessages = true;  // Whether there are more messages to load
@@ -41,7 +41,7 @@ const elements = {
     
 };
 
-// Configuration - all the rules and settings
+// Configuration all the rules and settings
 // Put all the "magic numbers" and rules here so we only have to change them in one place
 const CONFIG = {
     
@@ -560,7 +560,7 @@ socket.on('group_history_cleared', function(data) {
 });
 
 // Someone cleared the global chat history
-// Shouldn't affect users in a group - they're in their own space
+// Shouldn't affect users in a group they're in their own space
 socket.on('global_history_cleared', function(data) {
     
     // Only clear the display if we're actually in the global lobby
@@ -586,7 +586,7 @@ socket.on('group_deleted', function(data) {
 });
 
 // Server confirms we left a group
-// Safety check - requests global history again just in case we missed it
+// Safety check requests global history again just in case we missed it
 socket.on('left_group', function(data) {
 
     if (data.status === 'ok') {
@@ -664,7 +664,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Hide the chat interface until the user picks a username
     elements.chatInterface.style.display = 'none';
     
-    // Set up the username form - when they submit it, run our handler
+    // Set up the username form when they submit it, run our handler
     elements.usernameForm.addEventListener('submit', handleUsernameSubmit);
     
     // Also handle the Enter key in the username input (some people prefer to press Enter)
@@ -679,7 +679,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
     });
     
-    // Set up the message form - when they submit it, run our handler
+    // Set up the message form when they submit it, run our handler
     elements.messageForm.addEventListener('submit', handleMessageSubmit);
     
     // Also handle the Enter key in the message input (but not Shift+Enter, that should make a new line)
@@ -697,14 +697,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set up the load more messages button
     elements.loadMoreBtn.addEventListener('click', loadMoreMessages);
     
-    // Set up the clear history button - show confirmation modal
+    // Set up the clear history button show confirmation modal
     elements.clearHistoryBtn.addEventListener('click', showClearConfirmation);
     
     // Set up the clear confirmation modal buttons
     elements.confirmClearBtn.addEventListener('click', handleClearHistory);
     elements.cancelClearBtn.addEventListener('click', hideClearConfirmation);
 
-    // Set up the group control buttons - these handle creating, joining, leaving, clearing, and deleting groups
+    // Set up the group control buttons these handle creating, joining, leaving, clearing, and deleting groups
     elements.createGroupBtn.addEventListener('click', handleCreateGroup);
     elements.joinGroupBtn.addEventListener('click', handleJoinGroup);
     elements.leaveGroupBtn.addEventListener('click', handleLeaveGroup);

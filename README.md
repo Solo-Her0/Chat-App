@@ -22,20 +22,18 @@ This is my chat application project for SHSU COSC 2327 Introduction to Computer 
 
 - **Real-time Messaging**: Send and receive messages instantly using Socket.IO
 - **Message Persistence**: All messages are stored in Valkey database and loaded when users connect
-- **Chat History**: New users automatically receive the complete chat history upon connection
+- **Chat History**: New users automatically receive chat history upon connection
 - **Username Selection**: Users must choose a unique username before joining the chat
 - **Username Validation**: Client-side validation ensures usernames meet requirements (2-20 characters, alphanumeric with underscores/hyphens)
-- **Modern UI**: Clean, responsive interface built with Tailwind CSS featuring a modal-based username selection
 - **Multiple Input Methods**: Send messages by clicking the send button or pressing Enter
 - **Smart Timestamps**: Messages show time for today, full date for older messages
 - **User Avatars**: Each message displays an avatar with the user's first initial
-- **Group Chat (Global Lobby)**: Messages get broadcast to everyone connected to the chat
+- **Global Chat**: Messages get broadcast to everyone connected to the chat
 - **Private Group Chats**: Create or join private groups using a Group ID (letters, numbers, _ and -)
-- **Scoped Visibility**: When inside a private group, global lobby messages are hidden
-- **Chat History Management (Global)**: Clear global chat history with confirmation dialog
+- **Scoped Visibility**: When inside a private group, global chat messages are hidden
 - **Group History Management**: Clear chat history for just the current group (does not affect global or other groups)
 - **Independent Clears**: Clearing global history never clears group history, and vice versa
-- **Server Logs**: Console logs for group lifecycle events (create group chat, clear history (group chat or global), delete group chat)
+- **Server Logs**: Console logs for group lifecycle events (create group chat, clear history (group chat or global), new user connections, etc.)
 - **Static File Serving**: Serves up HTML, CSS, and JavaScript files from the public folder
 - **Error Handling**: Error messages for username conflicts and validation issues
 
@@ -53,7 +51,7 @@ Here's what I used to build this chat app:
 - **CORS Support**: Configured to work seamlessly with browsers
 - **Client-side Validation**: JavaScript-based username validation with regex patterns
 
-## Project Structure (STILL A WORK IN PROGRESS)
+## Project Structure 
 
 Here's how I organized the files:
 

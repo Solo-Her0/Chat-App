@@ -22,7 +22,7 @@
 <body>
 
     <!-- 
-        Username Selection Modal - first thing users see
+        Username Selection Modal first thing users see
         Popup that asks them to pick a username when they visit
         z-50 makes it appear above everything else
     -->
@@ -38,7 +38,7 @@
         <h2 class="text-xl font-bold mb-4 text-center text-gray-800">Choose Your Username</h2>
         
         <!-- 
-            Username form - where users type their username
+            Username form where users type their username
             Using a form so they can press Enter to submit
             space-y-4 adds spacing between stuff
         -->
@@ -54,14 +54,14 @@
                  required>
           
           <!-- 
-              Error message area - stays hidden until there's a problem
+              Error message area stays hidden until there's a problem
               Shows errors like "username too short" or "already taken"
               hidden class keeps it invisible until needed
           -->
           <div id="username-error" class="text-red-500 text-sm hidden"></div>
           
           <!-- 
-              Join Chat button - the big blue button
+              Join Chat button the big blue button
               hover:bg-indigo-600 makes it darker on hover
           -->
           <button type="submit" id="join-chat" 
@@ -85,7 +85,7 @@
       <div class="flex max-h-screen flex-col">
         
         <!-- 
-            Chat Header - top bar with "Chat" title
+            Chat Header top bar with "Chat" title
             Stays fixed at the top
         -->
         <header class="border-b border-gray-200 py-4 px-4 bg-white">
@@ -94,7 +94,7 @@
             <div class="flex items-center space-x-3">
               <h1 class="text-lg font-bold text-gray-800">Chat</h1>
               <!-- 
-                  Current Group Label - shows which group you're in (if any)
+                  Current Group Label shows which group you're in (if any)
                   Appears next to "Chat" when you're in a group
                   Empty when you're in the global lobby
               -->
@@ -102,47 +102,47 @@
             </div>
             
             <!-- 
-                Chat Controls - buttons for managing history and groups
+                Chat Controls buttons for managing history and groups
                 Put these in the header so they're easy to find
                 Group controls let you create, join, and manage private groups
             -->
             <div class="flex space-x-2 items-center">
               <!-- 
-                  Group ID Input - where you type the group ID you want to create or join
+                  Group ID Input where you type the group ID you want to create or join
                   Group IDs are 2-50 characters, letters, numbers, underscores, and hyphens
               -->
               <input id="group-id-input" type="text" placeholder="Group ID" 
                      class="px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <!-- 
-                  Create Group Button - creates a new private group with the ID from input
+                  Create Group Button creates a new private group with the ID from input
                   Only one group with a given ID can exist
                   Creator becomes the owner automatically
               -->
               <button id="create-group-btn" 
                       class="bg-indigo-500 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-600 transition-colors">Create</button>
               <!-- 
-                  Join Group Button - joins an existing private group
+                  Join Group Button joins an existing private group
                   Need to know the group ID to join (like a room number)
                   Shows all the group's historical messages once joined
               -->
               <button id="join-group-btn" 
                       class="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600 transition-colors">Join</button>
               <!-- 
-                  Leave Group Button - leaves the current private group
+                  Leave Group Button leaves the current private group
                   Switches you back to global lobby and loads global history
                   Won't get group messages anymore after leaving
               -->
               <button id="leave-group-btn" 
                       class="bg-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-400 transition-colors">Leave</button>
               <!-- 
-                  Clear Group Button - clears all messages from current group
+                  Clear Group Button clears all messages from current group
                   Only affects this group, not global chat or other groups
                   Group stays, just messages get deleted
               -->
               <button id="clear-group-btn" 
                       class="bg-orange-500 text-white px-3 py-1 rounded-md text-sm hover:bg-orange-600 transition-colors">Clear Group</button>
               <!-- 
-                  Delete Group Button - permanently deletes the current group
+                  Delete Group Button permanently deletes the current group
                   Supposed to be owner only but I'm not sure if that's working right
                   Removes everything and kicks everyone out
               -->
@@ -150,7 +150,7 @@
                       class="bg-red-600 text-white px-3 py-1 rounded-md text-sm hover:bg-red-700 transition-colors">Delete Group</button>
               
               <!-- 
-                  Load More Messages Button - loads older messages
+                  Load More Messages Button loads older messages
                   Appears when there are more messages to load
                   Fetches in batches of 50
               -->
@@ -160,7 +160,7 @@
               </button>
               
               <!-- 
-                  Clear History Button - clears all global chat history
+                  Clear History Button clears all global chat history
                   Only clears global lobby, not private group messages
                   Red color because it's destructive
                   Has a confirmation modal so you don't delete by accident
@@ -177,7 +177,7 @@
         </header>
         
         <!-- 
-            Messages Container - where all the chat messages go
+            Messages Container where all the chat messages go
             flex-1 makes it take up space between header and footer
             overflow-y-auto lets you scroll when there are too many messages
             Light gray background so messages stand out
@@ -195,7 +195,7 @@
         </main>
         
         <!-- 
-            Message Input Area - where you type messages
+            Message Input Area where you type messages
             Stays fixed at the bottom so it's always there
             Using a form so you can press Enter to send
             border-t separates it from messages above
@@ -205,7 +205,7 @@
           <form id="message-form" class="flex h-28 w-full flex-col space-y-2 rounded-2xl border-2 border-gray-200 p-3 bg-white">
             
             <!-- 
-                Message textarea - where you type
+                Message textarea where you type
                 Starts at 3 rows but can grow
                 resize-none stops you from resizing it manually
             -->
@@ -215,7 +215,7 @@
                       rows="3"></textarea>
             
             <!-- 
-                Send button container - separate div for better control
+                Send button container separate div for better control
                 flex justify-end pushes button to the right
             -->
             <div class="flex justify-end">
@@ -243,14 +243,14 @@
     </div>
 
     <!-- 
-        Clear History Confirmation Modal - safety check before clearing
+        Clear History Confirmation Modal safety check before clearing
         Shows up when you click "Clear History" so you don't delete by accident
         Semi-transparent overlay with centered modal
     -->
     <div id="clear-confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
       
       <!-- 
-          Confirmation modal box - asks you to confirm before deleting
+          Confirmation modal box asks you to confirm before deleting
           White background with rounded corners and shadow
       -->
       <div class="bg-white rounded-lg p-6 w-96 max-w-md mx-4 shadow-xl">
@@ -262,7 +262,7 @@
         </p>
         
         <!-- 
-            Confirmation buttons - Yes to confirm, No to cancel
+            Confirmation buttons Yes to confirm, No to cancel
             Different colors so you know which is which
         -->
         <div class="flex space-x-3">
@@ -283,7 +283,7 @@
       
     </div>
 
-    <!-- Main JavaScript file - handles all the chat functionality -->
+    <!-- Main JavaScript file handles all the chat functionality -->
     <script src="/js/main.js"></script>
 </body>
 </html>
