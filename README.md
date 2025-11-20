@@ -16,7 +16,6 @@ This is my chat application project for SHSU COSC 2327 Introduction to Computer 
 - Figure out how to add a text to speech voice that sounds like Donalad Duck.
 - If I figure out how to add the first text to speech voice add more for fun.
 - Add some CSS stuff to make everything look nicer than a giant white page with "Chat" in the top left corner.
-- Figure out more stuff to add if I have the time as this project isn't due until December 4th 2025.
 
 ## What This App Can Do
 
@@ -132,10 +131,10 @@ Here's the behind-the-scenes magic:
 7. **Smart Features**: 
    - Timestamps show time for same day for recent messages, full date for older messages
    - User avatars display the first letter of the username
-   - Enter key sends messages, Shift+Enter creates new lines
+   - Enter key sends messages
    - Complete chat history is preserved and loaded for new users
    - Real-time username conflict detection and error handling
-   - "Load More" button to fetch older messages in batches of 50
+   - "Load More" button to fetch older messages in batches of 50 (Doesn't really work but it's theree)
    - "Clear History" (Global) and "Clear Group" (Private Group) actions, each scoped to their own chat
    - Global history clear is emitted as a global-only event; group history clear is emitted to that group's room
    - Server logs when groups are created, joined, left, cleared, and deleted
