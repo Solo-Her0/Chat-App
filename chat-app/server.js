@@ -12,7 +12,6 @@ const path = require('path');              // Path helps us work with file and f
 const Redis = require('ioredis');          // Redis is our database it stores all the chat messages
 
 // Configuration all the settings for our server
-// This is like a settings file where we put all the important numbers and options
 // If we need to change something later, we only have to change it here
 const CONFIG = {
 
@@ -36,7 +35,6 @@ const CONFIG = {
 // =========================
 // Redis is our database it stores all the chat messages so they don't get lost
 // We're using Valkey, which is compatible with Redis
-// Think of it like a filing cabinet that never forgets anything
 
 const valkeyClient = new Redis({
     
@@ -63,7 +61,7 @@ valkeyClient.on('connect', () => {
 
 // Express App Setup
 // =================
-// Express is like a waiter at a restaurant - it takes requests from customers (browsers)
+// Express takes requests from browsers
 // and serves them the right responses (web pages, data, etc.)
 
 const app = express();                    // Create our Express application
@@ -85,7 +83,6 @@ app.get('/', (req, res) => {
 
 // Socket.IO Setup
 // ===============
-// Socket.IO is the magic that makes real-time chat possible
 // Instead of the browser asking "any new messages?" every few seconds,
 // Socket.IO creates a persistent connection that instantly sends new messages
 
